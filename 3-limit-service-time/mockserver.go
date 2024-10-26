@@ -20,18 +20,24 @@ func RunMockServer() {
 	u1 := User{ID: 0, IsPremium: false}
 	u2 := User{ID: 1, IsPremium: true}
 
-	wg.Add(5)
+	wg.Add(1)
 
 	go createMockRequest(1, shortProcess, &u1)
-	time.Sleep(1 * time.Second)
+	time.Sleep(10 * time.Second)
 
+	wg.Add(1)
 	go createMockRequest(2, longProcess, &u2)
 	time.Sleep(2 * time.Second)
 
+	wg.Add(1)
 	go createMockRequest(3, shortProcess, &u1)
-	time.Sleep(1 * time.Second)
+	time.Sleep(12 * time.Second)
 
+	wg.Add(1)
 	go createMockRequest(4, longProcess, &u1)
+	// time.Sleep(10*time.Second)
+
+	wg.Add(1)
 	go createMockRequest(5, shortProcess, &u2)
 
 	wg.Wait()
@@ -39,7 +45,7 @@ func RunMockServer() {
 
 func createMockRequest(pid int, fn func(), u *User) {
 	fmt.Println("UserID:", u.ID, "\tProcess", pid, "started.")
-	res := HandleRequest(fn, u)
+	res := HandleRequest(fn, u, pid)
 
 	if res {
 		fmt.Println("UserID:", u.ID, "\tProcess", pid, "done.")
