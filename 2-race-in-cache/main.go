@@ -10,6 +10,7 @@ package main
 
 import (
 	"container/list"
+	"sync"
 	"testing"
 )
 
@@ -29,25 +30,41 @@ type page struct {
 
 // KeyStoreCache is a LRU cache for string key-value pairs
 type KeyStoreCache struct {
-	cache map[string]*list.Element
-	pages list.List
-	load  func(string) string
+	cache     map[string]*list.Element
+	pages     list.List
+	load      func(string) string
+	readLock  *sync.Mutex
+	writeLock *sync.Mutex
 }
+
+var iswriteRunning bool
 
 // New creates a new KeyStoreCache
 func New(load KeyStoreCacheLoader) *KeyStoreCache {
 	return &KeyStoreCache{
-		load:  load.Load,
-		cache: make(map[string]*list.Element),
+		load:      load.Load,
+		cache:     make(map[string]*list.Element),
+		readLock:  &sync.Mutex{},
+		writeLock: &sync.Mutex{},
 	}
 }
 
 // Get gets the key from cache, loads it from the source if needed
 func (k *KeyStoreCache) Get(key string) string {
+	// if iswriteRunning {
+	k.readLock.Lock()
+	// }
 	if e, ok := k.cache[key]; ok {
 		k.pages.MoveToFront(e)
 		return e.Value.(page).Value
 	}
+	// if iswriteRunning {
+	k.readLock.Unlock()
+	// }
+
+	k.writeLock.Lock()
+	k.readLock.Lock()
+	// iswriteRunning = true
 	// Miss - load from database and save it in cache
 	p := page{key, k.load(key)}
 	// if cache is full remove the least used item
@@ -60,6 +77,9 @@ func (k *KeyStoreCache) Get(key string) string {
 	}
 	k.pages.PushFront(p)
 	k.cache[key] = k.pages.Front()
+	// iswriteRunning = false
+	k.readLock.Unlock()
+	k.writeLock.Unlock()
 	return p.Value
 }
 

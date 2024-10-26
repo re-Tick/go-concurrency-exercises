@@ -12,6 +12,7 @@ package main
 import (
 	"fmt"
 	"sync"
+	"time"
 )
 
 // Crawl uses `fetcher` from the `mockfetcher.go` file to imitate a
@@ -22,6 +23,9 @@ func Crawl(url string, depth int, wg *sync.WaitGroup) {
 	if depth <= 0 {
 		return
 	}
+
+	// block for a second after crawling a page
+	<-ticker.C
 
 	body, urls, err := fetcher.Fetch(url)
 	if err != nil {
@@ -39,10 +43,13 @@ func Crawl(url string, depth int, wg *sync.WaitGroup) {
 	}
 }
 
+var ticker *time.Ticker = time.NewTicker(time.Second)
+
 func main() {
 	var wg sync.WaitGroup
 
 	wg.Add(1)
 	Crawl("http://golang.org/", 4, &wg)
 	wg.Wait()
+	ticker.Stop()
 }
